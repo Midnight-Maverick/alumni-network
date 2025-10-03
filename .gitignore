@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.env
+
+# Node (if you use npm later)
+node_modules/
+
+# Media and static files
+media/
+staticfiles/
+
+# OS files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+venv/

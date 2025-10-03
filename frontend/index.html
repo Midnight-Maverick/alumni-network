@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alumni Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
+    <!-- App Container -->
+    <div id="app" class="min-h-screen">
+        <!-- Navigation Bar -->
+        <nav id="navbar" class="hidden bg-white dark:bg-gray-800 shadow-md p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Alumni Network</h1>
+                <div class="flex gap-4 items-center">
+                    <button onclick="showFeed()" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Feed</button>
+                    <button onclick="showProfile()" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Profile</button>
+                    <button onclick="showChat()" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Chat</button>
+                    <button onclick="toggleDarkMode()" class="text-gray-700 dark:text-gray-300">🌙</button>
+                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Auth Screen -->
+        <div id="authScreen" class="flex items-center justify-center min-h-screen">
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg w-96">
+                <h2 class="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-white">Alumni Network</h2>
+                
+                <!-- Login Form -->
+                <div id="loginForm">
+                    <h3 class="text-xl mb-4 text-gray-700 dark:text-gray-300">Login</h3>
+                    <input type="text" id="loginUsername" placeholder="Username" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
+                    <input type="password" id="loginPassword" placeholder="Password" class="w-full p-3 mb-4 border rounded dark:bg-gray-700 dark:text-white">
+                    <button onclick="login()" class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700">Login</button>
+                    <p class="mt-4 text-center text-gray-600 dark:text-gray-400">
+                        Don't have an account? <button onclick="showRegister()" class="text-blue-600">Register</button>
+                    </p>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="hidden">
+                    <h3 class="text-xl mb-4 text-gray-700 dark:text-gray-300">Register</h3>
+                    <input type="email" id="regEmail" placeholder="Email" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
+                    <input type="text" id="regUsername" placeholder="Username" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
+                    <input type="text" id="regFullName" placeholder="Full Name" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
+                    <input type="password" id="regPassword" placeholder="Password" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
+                    <label class="flex items-center mb-4 text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" id="isAlumni" class="mr-2">
+                        I am an Alumni
+                    </label>
+                    <button onclick="register()" class="w-full bg-green-600 text-white p-3 rounded hover:bg-green-700">Register</button>
+                    <p class="mt-4 text-center text-gray-600 dark:text-gray-400">
+                        Already have an account? <button onclick="showLogin()" class="text-blue-600">Login</button>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" class="hidden container mx-auto p-6 max-w-4xl">
+            <!-- Feed Screen -->
+            <div id="feedScreen">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Feed</h2>
+                
+                <!-- Create Post -->
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                    <textarea id="postContent" placeholder="What's on your mind?" class="w-full p-3 border rounded dark:bg-gray-700 dark:text-white" rows="3"></textarea>
+                    <button onclick="createPost()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Post</button>
+                </div>
+
+                <!-- Posts List -->
+                <div id="postsList"></div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profileScreen" class="hidden">
+                <div id="profileContent"></div>
+            </div>
+
+            <!-- Chat Screen -->
+            <div id="chatScreen" class="hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Chat</h2>
+                
+                <div class="grid grid-cols-3 gap-4">
+                    <!-- Users List -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-4 text-gray-700 dark:text-gray-300">Users</h3>
+                        <div id="usersList"></div>
+                    </div>
+
+                    <!-- Chat Area -->
+                    <div class="col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow flex flex-col" style="height: 500px;">
+                        <div id="chatMessages" class="flex-1 p-4 overflow-y-auto"></div>
+                        <div class="p-4 border-t dark:border-gray-700">
+                            <input type="text" id="chatInput" placeholder="Type a message..." class="w-full p-3 border rounded dark:bg-gray-700 dark:text-white" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000';
+        let token = localStorage.getItem('token');
+        let currentUser = null;
+        let ws = null;
+        let selectedChatUser = null;
+
+        // Initialize
+        if (token) {
+            loadUser();
+        }
+
+        // Auth Functions
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            try {
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    token = data.access_token;
+                    localStorage.setItem('token', token);
+                    await loadUser();
+                } else {
+                    alert('Login failed!');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function register() {
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUsername').value;
+            const fullName = document.getElementById('regFullName').value;
+            const password = document.getElementById('regPassword').value;
+            const isAlumni = document.getElementById('isAlumni').checked;
+
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        username,
+                        full_name: fullName,
+                        password,
+                        is_alumni: isAlumni
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Registration successful! Please login.');
+                    showLogin();
+                } else {
+                    const error = await response.json();
+                    alert('Registration failed: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function loadUser() {
+            try {
+                const response = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    currentUser = await response.json();
+                    showMainApp();
+                    connectWebSocket();
+                    loadFeed();
+                } else {
+                    logout();
+                }
+            } catch (error) {
+                logout();
+            }
+        }
+
+        function logout() {
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('token');
+            if (ws) ws.close();
+            showAuthScreen();
+        }
+
+        // UI Navigation
+        function showAuthScreen() {
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('navbar').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+
+        function showFeed() {
+            document.getElementById('feedScreen').classList.remove('hidden');
+            document.getElementById('profileScreen').classList.add('hidden');
+            document.getElementById('chatScreen').classList.add('hidden');
+            loadFeed();
+        }
+
+        function showProfile() {
+            document.getElementById('feedScreen').classList.add('hidden');
+            document.getElementById('profileScreen').classList.remove('hidden');
+            document.getElementById('chatScreen').classList.add('hidden');
+            loadProfile();
+        }
+
+        function showChat() {
+            document.getElementById('feedScreen').classList.add('hidden');
+            document.getElementById('profileScreen').classList.add('hidden');
+            document.getElementById('chatScreen').classList.remove('hidden');
+            loadUsers();
+        }
+
+        // Feed Functions
+        async function loadFeed() {
+            try {
+                const response = await fetch(`${API_URL}/posts/feed`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const posts = await response.json();
+                    displayPosts(posts);
+                }
+            } catch (error) {
+                console.error('Error loading feed:', error);
+            }
+        }
+
+        function displayPosts(posts) {
+            const postsList = document.getElementById('postsList');
+            postsList.innerHTML = posts.map(post => `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-4">
+                    <div class="flex items-center mb-3">
+                        <div class="font-bold text-gray-800 dark:text-white">${post.author.full_name}</div>
+                        <span class="text-sm text-gray-500 ml-2">@${post.author.username}</span>
+                    </div>
+                    <p class="text-gray-700 dark:text-gray-300 mb-3">${post.content}</p>
+                    <div class="flex gap-4 text-sm text-gray-500">
+                        <button onclick="likePost(${post.id})" class="hover:text-red-600">❤️ ${post.likes_count}</button>
+                        <span>💬 ${post.comments_count}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function createPost() {
+            const content = document.getElementById('postContent').value;
+            if (!content.trim()) return;
+
+            try {
+                const response = await fetch(`${API_URL}/posts/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                if (response.ok) {
+                    document.getElementById('postContent').value = '';
+                    loadFeed();
+                }
+            } catch (error) {
+                alert('Error creating post');
+            }
+        }
+
+        async function likePost(postId) {
+            try {
+                await fetch(`${API_URL}/posts/${postId}/like`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                loadFeed();
+            } catch (error) {
+                console.error('Error liking post');
+            }
+        }
+
+        // Profile Functions
+        async function loadProfile() {
+            const profileContent = document.getElementById('profileContent');
+            profileContent.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800 dark:text-white">${currentUser.full_name}</h2>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">@${currentUser.username}</p>
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${currentUser.email}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">${currentUser.is_alumni ? 'Alumni' : 'Student'}</p>
+                    <div class="mt-4 flex gap-4">
+                        <div><strong>${currentUser.followers_count}</strong> Followers</div>
+                        <div><strong>${currentUser.following_count}</strong> Following</div>
+                        <div><strong>${currentUser.posts_count}</strong> Posts</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Chat Functions
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://localhost:8000/ws/${token}`);
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (selectedChatUser && (message.sender_id === selectedChatUser.id || message.receiver_id === selectedChatUser.id)) {
+                    displayMessage(message);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+            };
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/users/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const users = await response.json();
+                    const usersList = document.getElementById('usersList');
+                    usersList.innerHTML = users.filter(u => u.id !== currentUser.id).map(user => `
+                        <div onclick="selectChatUser(${user.id})" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-gray-700 dark:text-gray-300">
+                            ${user.full_name}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading users');
+            }
+        }
+
+        async function selectChatUser(userId) {
+            try {
+                const response = await fetch(`${API_URL}/users/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    selectedChatUser = await response.json();
+                    document.getElementById('chatInput').disabled = false;
+                    loadChatHistory(userId);
+                }
+            } catch (error) {
+                console.error('Error selecting user');
+            }
+        }
+
+        async function loadChatHistory(userId) {
+            try {
+                const response = await fetch(`${API_URL}/chat/history/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const messages = await response.json();
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = messages.map(msg => `
+                        <div class="mb-2 ${msg.sender_id === currentUser.id ? 'text-right' : 'text-left'}">
+                            <div class="inline-block p-2 rounded ${msg.sender_id === currentUser.id ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white'}">
+                                ${msg.message}
+                            </div>
+                        </div>
+                    `).join('');
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error loading chat history');
+            }
+        }
+
+        function displayMessage(message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-2 ${message.sender_id === currentUser.id ? 'text-right' : 'text-left'}`;
+            messageDiv.innerHTML = `
+                <div class="inline-block p-2 rounded ${message.sender_id === currentUser.id ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white'}">
+                    ${message.message}
+                </div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Send message on Enter
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && selectedChatUser) {
+                        const message = chatInput.value.trim();
+                        if (message && ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                receiver_id: selectedChatUser.id,
+                                message: message
+                            }));
+                            chatInput.value = '';
+                        }
+                    }
+                });
+            }
+        });
+
+        // Dark Mode
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        }
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</body>
+</html>
