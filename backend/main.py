@@ -1,12 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles  
+from fastapi.responses import FileResponse  
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Dict
 import json
 import redis
 import os
+PORT = int(os.getenv("PORT", 8000))
 from dotenv import load_dotenv
 from database import engine, get_db, Base
 import models, schemas
@@ -54,8 +57,23 @@ app.include_router(posts.router)
 app.include_router(events.router)
 app.include_router(chat.router)
 @app.get("/")
-def read_root():
-    return {"message": "Alumni-Student Network API", "status": "running"}
+async def serve_frontend():
+    """Serve the frontend HTML file"""
+    import os
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+    return FileResponse(frontend_path)
+
+@app.get("/")
+async def serve_frontend():
+    """Serve the frontend HTML file"""
+    import os
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+    return FileResponse(frontend_path)
+
+@app.get("/health")
+def health_check():
+    """API health check endpoint"""
+    return {"message": "Alumni-Student Network API", "status": "running"}   
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
@@ -161,4 +179,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str, db: Session = Dep
         await websocket.close(code=1011)
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

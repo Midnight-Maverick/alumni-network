@@ -104,8 +104,13 @@
     </div>
 
     <script>
-        // Configuration
-        const API_URL = 'http://localhost:8000';
+        // ============================================
+        // CONFIGURATION - Auto-detects local vs production
+        // ============================================
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8000' 
+            : window.location.origin;
+
         let token = localStorage.getItem('token');
         let currentUser = null;
         let ws = null;
@@ -333,9 +338,15 @@
             `;
         }
 
-        // Chat Functions
+        // Chat Functions - UPDATED FOR PRODUCTION
         function connectWebSocket() {
-            ws = new WebSocket(`ws://localhost:8000/ws/${token}`);
+            // Auto-detect WebSocket protocol and host
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'localhost:8000' 
+                : window.location.host;
+            
+            ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/${token}`);
             
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
@@ -346,6 +357,10 @@
 
             ws.onclose = () => {
                 console.log('WebSocket closed');
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
             };
         }
 
