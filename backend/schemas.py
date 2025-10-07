@@ -4,8 +4,9 @@ from typing import Optional, List
 class UserBase(BaseModel):
     email: EmailStr
     username: str
-    fullname: str
-    isalumni: bool = False
+    full_name: str
+    is_alumni: bool = False
+
 class UserCreate(UserBase):
     password: str
 
@@ -16,31 +17,31 @@ class UserLogin(BaseModel):
 class User(UserBase):
     id: int
     bio: Optional[str] = None
-    profilepic: Optional[str] = None
-    createdat: datetime
-
+    profile_pic: Optional[str] = None
+    created_at: datetime
+    
     class Config:
         from_attributes = True
 
 class UserWithStats(User):
-    followerscount: int
-    followingcount: int
-    postscount: int
+    followers_count: int
+    following_count: int
+    posts_count: int
 
 class PostCreate(BaseModel):
     content: str
-    mediaurl: Optional[str] = None
+    media_url: Optional[str] = None
 
 class Post(BaseModel):
     id: int
     content: str
-    mediaurl: Optional[str] = None
-    authorid: int
-    createdat: datetime
+    media_url: Optional[str] = None
+    author_id: int
+    created_at: datetime
     author: User
-    likescount: int
-    commentscount: int
-
+    likes_count: int
+    comments_count: int
+    
     class Config:
         from_attributes = True
 
@@ -50,46 +51,52 @@ class CommentCreate(BaseModel):
 class Comment(BaseModel):
     id: int
     content: str
-    postid: int
-    authorid: int
-    createdat: datetime
+    post_id: int
+    author_id: int
+    created_at: datetime
     author: User
-    
     class Config:
         from_attributes = True
+
 
 class EventCreate(BaseModel):
     title: str
     description: str
-    eventdate: datetime
+    event_date: datetime
     location: str
 
 class Event(BaseModel):
     id: int
     title: str
     description: str
-    eventdate: datetime
+    event_date: datetime
     location: str
-    creatorid: int
-    createdat: datetime
+    creator_id: int
+    created_at: datetime
     creator: User
-    class Config:
-        from_attributes = True
-class ChatMessageCreate(BaseModel):
-    receiverid: int
-    message: str
-class ChatMessage(BaseModel):
-    id: int
-    senderid: int
-    receiverid: int
-    message: str
-    isread: bool
-    createdat: datetime
     
     class Config:
         from_attributes = True
+
+class ChatMessageCreate(BaseModel):
+    receiver_id: int
+    message: str
+
+class ChatMessage(BaseModel):
+    id: int
+    sender_id: int
+    receiver_id: int
+    message: str
+    is_read: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class Token(BaseModel):
-    accesstoken: str
-    tokentype: str
+    access_token: str
+    token_type: str
+
 class TokenData(BaseModel):
     username: Optional[str] = None

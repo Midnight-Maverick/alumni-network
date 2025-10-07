@@ -1,112 +1,91 @@
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
+from typing import List
 from database import get_db
-from auth import currentuser
-import models
-import schemas
+import models, schemas
+from auth import get_current_user
 router = APIRouter(prefix="/posts", tags=["posts"])
 @router.post("/", response_model=schemas.Post)
-def createpost(post: schemas.PostCreate, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
-    dbpost = models.Post(**post.dict(), author_id=current_user.id)
-    db.add(dbpost)
+def create_post(post: schemas.PostCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_post = models.Post(**post.dict(), author_id=current_user.id)
+    db.add(db_post)
     db.commit()
-    db.refresh(dbpost)
-    dbpost.likescount = 0
-    dbpost.commentscount = 0
-    return dbpost
+    db.refresh(db_post)
+    db_post.likes_count = 0
+    db_post.comments_count = 0
+    return db_post
 
 @router.get("/", response_model=List[schemas.Post])
-def getposts(skip: int = 0, limit: int = 20, db: session = Depends(get_db)):
-    posts = db.query(models.Post).order_by(models.Post.createdat.desc()).offset(skip).limit(limit).all()
+def get_posts(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
     for post in posts:
-        post.likescount = len(post.likes)
-        post.commentscount = len(post.comments)
-
+        post.likes_count = len(post.likes)
+        post.comments_count = len(post.comments)
     return posts
-
 @router.get("/feed", response_model=List[schemas.Post])
-def get_feed(skip: int = 0, limit: int = 20, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
-    followingids = [user.id for user in current_user.following]
-    followingids.append(current_user.id)
-    
-    posts = db.query(models.Post).filter(models.Post.authorid.in_(followingids)).order_by(models.Post.createdat.desc()).offset(skip).limit(limit).all()
-    
+def get_feed(skip: int = 0, limit: int = 20, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    following_ids = [user.id for user in current_user.following]
+    following_ids.append(current_user.id)
+    posts = db.query(models.Post).filter(models.Post.author_id.in_(following_ids)).order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
     for post in posts:
-        post.likescount = len(post.likes)
-        post.commentscount = len(post.comments)
-
+        post.likes_count = len(post.likes)
+        post.comments_count = len(post.comments)
     return posts
-
 @router.get("/{post_id}", response_model=schemas.Post)
-def getpost(post_id: int, db: session = Depends(get_db)):
+def get_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-
-    post.likescount = len(post.likes)
-    post.commentscount = len(post.comments)
+    post.likes_count = len(post.likes)
+    post.comments_count = len(post.comments)
     return post
-
 @router.delete("/{post_id}")
-def deletepost(post_id: int, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
+def delete_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    
-    if post.authorid != current_user.id:
+    if post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
-    
     db.delete(post)
     db.commit()
     return {"message": "Post deleted successfully"}
-
 @router.post("/{post_id}/like")
-def likepost(post_id: int, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
+def like_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    
-    existinglike = db.query(models.Like).filter(
-        models.Like.postid == post_id,
+    existing_like = db.query(models.Like).filter(
+        models.Like.post_id == post_id,
         models.Like.user_id == current_user.id
     ).first()
-    
-    if existinglike:
+    if existing_like:
         raise HTTPException(status_code=400, detail="Already liked this post")
-    
     like = models.Like(post_id=post_id, user_id=current_user.id)
     db.add(like)
     db.commit()
     return {"message": "Post liked successfully"}
-
 @router.delete("/{post_id}/like")
-def unlikepost(post_id: int, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
+def unlike_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     like = db.query(models.Like).filter(
-        models.Like.postid == post_id,
+        models.Like.post_id == post_id,
         models.Like.user_id == current_user.id
     ).first()
-    
     if not like:
         raise HTTPException(status_code=404, detail="Like not found")
-    
     db.delete(like)
     db.commit()
     return {"message": "Post unliked successfully"}
-
 @router.post("/{post_id}/comments", response_model=schemas.Comment)
-def createcomment(post_id: int, comment: schemas.CommentCreate, current_user: models.User = Depends(currentuser), db: session = Depends(get_db)):
+def create_comment(post_id: int, comment: schemas.CommentCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    
     db_comment = models.Comment(**comment.dict(), post_id=post_id, author_id=current_user.id)
     db.add(db_comment)
     db.commit()
     db.refresh(db_comment)
     return db_comment
-
 @router.get("/{post_id}/comments", response_model=List[schemas.Comment])
-def getcomments(post_id: int, db: session = Depends(get_db)):
-    comments = db.query(models.Comment).filter(models.Comment.postid == post_id).order_by(models.Comment.createdat.desc()).all()
+def get_comments(post_id: int, db: Session = Depends(get_db)):
+    comments = db.query(models.Comment).filter(models.Comment.post_id == post_id).order_by(models.Comment.created_at.desc()).all()
     return comments
