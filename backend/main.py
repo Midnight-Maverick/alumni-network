@@ -8,14 +8,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import redis
-from database import engine, get_db, Base
+from database import engine, get_db, base
 import models, schemas
-from auth import authenticate_user, create_access_token, get_password_hash, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from auth import authuser, accesstoken, getpwd, currentuser, expire
 from routes import users, posts, events, chat
-
 load_dotenv()
-# We are creating database tables
-Base.metadata.create_all(bind=engine)
+base.metadata.create_all(bind=engine)
 app = FastAPI(title="Alumni-Student Network")
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +22,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Setting up reddis connection
 try:
     redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
     redis_client.ping()
@@ -32,8 +29,6 @@ try:
 except Exception as e:
     print(f"Redis not connected: {e}")
     redis_client = None
-
-# Setting up websocket
 class connectionman:
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}  
@@ -58,21 +53,19 @@ class connectionman:
 
 man = connectionman()
 
-# routering
+
 app.include_router(users.router)
 app.include_router(posts.router)
 app.include_router(events.router)
 app.include_router(chat.router)
 
-# root's endpoint
 @app.get("/")
 def read_root():
     return {"message": "Alumni-Student Network API", "status": "running"}
 
-# register's endpoint
 @app.post("/register", response_model=schemas.User)
 def reg(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # checking if user already exists
+  
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -81,8 +74,7 @@ def reg(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Username already taken")
     
-    # we are creating a new user
-    hashedpwd = get_password_hash(user.password)
+    hashedpwd = getpwd(user.password)
     db_user = models.User(
         email=user.email,
         username=user.username,
@@ -94,11 +86,9 @@ def reg(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return db_user
-
-# login's endpoint
 @app.post("/token", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    userdata = authenticate_user(db, form_data.username, form_data.password)
+    userdata = authuser(db, form_data.username, form_data.password)
     if not userdata:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,20 +96,19 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": userdata.username}, expires_delta=access_token_expires
+    access_token_expires = timedelta(minutes=expire)
+    access_token = accesstoken(
+        data={"sub": userdata.username}, expiredelta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# websocket's endpoint
 @app.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
     try:
         from jose import jwt, JWTError
-        from auth import SECRET_KEY, ALGORITHM
+        from auth import secretkey, algo
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, secretkey, algorithms=[algo])
             username: str = payload.get("sub")
             if username is None:
                 await websocket.close(code=1008)
@@ -165,7 +154,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str, db: Session = Dep
                     "message": message_data["message"],
                     "created_at": chatmes.created_at.isoformat(),
                     "sender_username": user.username,
-                    "sender_full_name": user.full_name
+                    "sender_full_name": user.fullname
                 }
                 await man.send_personal_message(resdata, message_data["receiver_id"])
                 await man.send_personal_message(resdata, user.id)

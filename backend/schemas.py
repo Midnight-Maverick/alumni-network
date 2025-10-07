@@ -1,14 +1,11 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
-
-# User Schemas
 class UserBase(BaseModel):
     email: EmailStr
     username: str
-    full_name: str
-    is_alumni: bool = False
-
+    fullname: str
+    isalumni: bool = False
 class UserCreate(UserBase):
     password: str
 
@@ -19,90 +16,80 @@ class UserLogin(BaseModel):
 class User(UserBase):
     id: int
     bio: Optional[str] = None
-    profile_pic: Optional[str] = None
-    created_at: datetime
-    
+    profilepic: Optional[str] = None
+    createdat: datetime
+
     class Config:
         from_attributes = True
 
 class UserWithStats(User):
-    followers_count: int
-    following_count: int
-    posts_count: int
+    followerscount: int
+    followingcount: int
+    postscount: int
 
-# Post Schemas
 class PostCreate(BaseModel):
     content: str
-    media_url: Optional[str] = None
+    mediaurl: Optional[str] = None
 
 class Post(BaseModel):
     id: int
     content: str
-    media_url: Optional[str] = None
-    author_id: int
-    created_at: datetime
+    mediaurl: Optional[str] = None
+    authorid: int
+    createdat: datetime
     author: User
-    likes_count: int
-    comments_count: int
-    
+    likescount: int
+    commentscount: int
+
     class Config:
         from_attributes = True
 
-# Comment Schemas
 class CommentCreate(BaseModel):
     content: str
 
 class Comment(BaseModel):
     id: int
     content: str
-    post_id: int
-    author_id: int
-    created_at: datetime
+    postid: int
+    authorid: int
+    createdat: datetime
     author: User
     
     class Config:
         from_attributes = True
 
-# Event Schemas
 class EventCreate(BaseModel):
     title: str
     description: str
-    event_date: datetime
+    eventdate: datetime
     location: str
 
 class Event(BaseModel):
     id: int
     title: str
     description: str
-    event_date: datetime
+    eventdate: datetime
     location: str
-    creator_id: int
-    created_at: datetime
+    creatorid: int
+    createdat: datetime
     creator: User
-    
     class Config:
         from_attributes = True
-
-# Chat Schemas
 class ChatMessageCreate(BaseModel):
-    receiver_id: int
+    receiverid: int
     message: str
-
 class ChatMessage(BaseModel):
     id: int
-    sender_id: int
-    receiver_id: int
+    senderid: int
+    receiverid: int
     message: str
-    is_read: bool
-    created_at: datetime
+    isread: bool
+    createdat: datetime
     
     class Config:
         from_attributes = True
-
-# Token Schema
 class Token(BaseModel):
-    access_token: str
-    token_type: str
-
+    accesstoken: str
+    tokentype: str
 class TokenData(BaseModel):
     username: Optional[str] = None
