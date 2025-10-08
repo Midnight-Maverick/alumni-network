@@ -8,9 +8,7 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
-    <!-- App Container -->
     <div id="app" class="min-h-screen">
-        <!-- Navigation Bar -->
         <nav id="navbar" class="hidden bg-white dark:bg-gray-800 shadow-md p-4">
             <div class="container mx-auto flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Alumni Network</h1>
@@ -24,12 +22,11 @@
             </div>
         </nav>
 
-        <!-- Auth Screen -->
         <div id="authScreen" class="flex items-center justify-center min-h-screen">
             <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg w-96">
                 <h2 class="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-white">Alumni Network</h2>
                 
-                <!-- Login Form -->
+                
                 <div id="loginForm">
                     <h3 class="text-xl mb-4 text-gray-700 dark:text-gray-300">Login</h3>
                     <input type="text" id="loginUsername" placeholder="Username" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
@@ -40,7 +37,7 @@
                     </p>
                 </div>
 
-                <!-- Register Form -->
+               
                 <div id="registerForm" class="hidden">
                     <h3 class="text-xl mb-4 text-gray-700 dark:text-gray-300">Register</h3>
                     <input type="email" id="regEmail" placeholder="Email" class="w-full p-3 mb-3 border rounded dark:bg-gray-700 dark:text-white">
@@ -59,28 +56,28 @@
             </div>
         </div>
 
-        <!-- Main Content -->
+       
         <div id="mainContent" class="hidden container mx-auto p-6 max-w-4xl">
-            <!-- Feed Screen -->
+            
             <div id="feedScreen">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Feed</h2>
                 
-                <!-- Create Post -->
+                
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                     <textarea id="postContent" placeholder="What's on your mind?" class="w-full p-3 border rounded dark:bg-gray-700 dark:text-white" rows="3"></textarea>
                     <button onclick="createPost()" class="mt-2 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Post</button>
                 </div>
 
-                <!-- Posts List -->
+               
                 <div id="postsList"></div>
             </div>
 
-            <!-- Profile Screen -->
+            
             <div id="profileScreen" class="hidden">
                 <div id="profileContent"></div>
             </div>
 
-            <!-- Chat Screen -->
+            
             <div id="chatScreen" class="hidden">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Chat</h2>
                 
@@ -104,9 +101,6 @@
     </div>
 
     <script>
-        // ============================================
-        // CONFIGURATION - Auto-detects local vs production
-        // ============================================
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:8000' 
             : window.location.origin;
@@ -115,13 +109,9 @@
         let currentUser = null;
         let ws = null;
         let selectedChatUser = null;
-
-        // Initialize
         if (token) {
             loadUser();
         }
-
-        // Auth Functions
         async function login() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
@@ -208,7 +198,6 @@
             showAuthScreen();
         }
 
-        // UI Navigation
         function showAuthScreen() {
             document.getElementById('authScreen').classList.remove('hidden');
             document.getElementById('navbar').classList.add('hidden');
@@ -251,8 +240,6 @@
             document.getElementById('chatScreen').classList.remove('hidden');
             loadUsers();
         }
-
-        // Feed Functions
         async function loadFeed() {
             try {
                 const response = await fetch(`${API_URL}/posts/feed`, {
@@ -278,8 +265,8 @@
                     </div>
                     <p class="text-gray-700 dark:text-gray-300 mb-3">${post.content}</p>
                     <div class="flex gap-4 text-sm text-gray-500">
-                        <button onclick="likePost(${post.id})" class="hover:text-red-600">❤️ ${post.likes_count}</button>
-                        <span>💬 ${post.comments_count}</span>
+                        <button onclick="likePost(${post.id})" class="hover:text-red-600"> ${post.likes_count}</button>
+                        <span> ${post.comments_count}</span>
                     </div>
                 </div>
             `).join('');
@@ -319,8 +306,6 @@
                 console.error('Error liking post');
             }
         }
-
-        // Profile Functions
         async function loadProfile() {
             const profileContent = document.getElementById('profileContent');
             profileContent.innerHTML = `
@@ -337,17 +322,13 @@
                 </div>
             `;
         }
-
-        // Chat Functions - UPDATED FOR PRODUCTION
         function connectWebSocket() {
-            // Auto-detect WebSocket protocol and host
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsHost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'localhost:8000' 
+                ? 'localhost:8000'
                 : window.location.host;
-            
+
             ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/${token}`);
-            
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
                 if (selectedChatUser && (message.sender_id === selectedChatUser.id || message.receiver_id === selectedChatUser.id)) {
@@ -363,7 +344,6 @@
                 console.error('WebSocket error:', error);
             };
         }
-
         async function loadUsers() {
             try {
                 const response = await fetch(`${API_URL}/users/`, {
@@ -435,8 +415,6 @@
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-
-        // Send message on Enter
         document.addEventListener('DOMContentLoaded', () => {
             const chatInput = document.getElementById('chatInput');
             if (chatInput) {
@@ -454,14 +432,10 @@
                 });
             }
         });
-
-        // Dark Mode
         function toggleDarkMode() {
             document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
         }
-
-        // Load dark mode preference
         if (localStorage.getItem('darkMode') === 'true') {
             document.documentElement.classList.add('dark');
         }
